@@ -1,5 +1,4 @@
 import sys
-import sys
 import socket
 import os
 import requests
@@ -31,6 +30,35 @@ NOME_SO = platform.system()
 NOME_SO_VERSAO = platform.release()
 NOME_SO_ARQUITETURA = platform.architecture()
 NOME_SO_ARQUITETURA = NOME_SO_ARQUITETURA[0]
+
+
+# GLOBAL Funções
+
+# class pegar_ip_externo(QThread):
+#    resposta_ip_externo = pyqtSignal(str)
+
+def pegar_ip_externo():
+    # time.sleep(0.5) # draminha
+    resposta = requests.get("https://api.ipify.org?format=json")
+    data = resposta.json()
+    ip_externo = data["ip"]
+    # self.resposta_ip_externo.emit(ip_externo)
+    if ip_externo == None:
+        ip_exerno = "0.0.0.0"
+    return ip_externo
+
+def pegar_ip_local():
+
+    try:
+        interfaces = ni.interfaces()
+        for iface in interfaces:
+            if iface != 'lo':  # Ignorar interface loopback
+                addresses = ni.ifaddresses(iface)
+                if ni.AF_INET in addresses:
+                    return addresses[ni.AF_INET][0]['addr']
+    except:
+        pass
+    return None
 
 
 class Janela(QMainWindow, Ui_Janela):
@@ -95,9 +123,22 @@ class Janela(QMainWindow, Ui_Janela):
             self.widget_atual.deleteLater()
 
         # Alimentando as labels do rede
+
+        # pegar_ip_externo()
+        #def pegar_ip_externo(self):
+            # self.progresso_externo.setValue(1)
+         #   self.thread = pegar_ip_externo()
+         #   self.thread.resposta_ip_externo.connect(self.mostrar_ip_externo)
+         #   self.thread.start()
+
         tudo_rede = self.rede_ui
+        ip_local = pegar_ip_local()
+        if ip_local == None:
+            ip_local = "0.0.0.0"
         tudo_rede.valor_local.setText("ok")
-        # self.layoutMiolo.removeWidget(self)
+        tudo_rede.valor_internet.setText("ok")
+        tudo_rede.valor_ip_externo.setText(pegar_ip_externo())
+        tudo_rede.valor_ip_local.setText(ip_local)
         self.layoutMiolo.addWidget(self.rede_widget)
         self.widget_atual = self.rede_widget
 

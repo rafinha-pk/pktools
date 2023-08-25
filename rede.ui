@@ -51,7 +51,7 @@
     <string>Rede Local:</string>
    </property>
   </widget>
-  <widget class="QLabel" name="valor_local_2">
+  <widget class="QLabel" name="valor_internet">
    <property name="geometry">
     <rect>
      <x>200</x>
