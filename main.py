@@ -34,18 +34,15 @@ NOME_SO_ARQUITETURA = NOME_SO_ARQUITETURA[0]
 
 # GLOBAL Funções
 
-# class pegar_ip_externo(QThread):
-#    resposta_ip_externo = pyqtSignal(str)
+class pegar_ip_externo(QThread):
+    resposta_ip_externo = pyqtSignal(str)
 
-def pegar_ip_externo():
-    # time.sleep(0.5) # draminha
-    resposta = requests.get("https://api.ipify.org?format=json")
-    data = resposta.json()
-    ip_externo = data["ip"]
-    # self.resposta_ip_externo.emit(ip_externo)
-    if ip_externo == None:
-        ip_exerno = "0.0.0.0"
-    return ip_externo
+    def run(self):
+        time.sleep(0.5) # draminha
+        resposta = requests.get("https://api.ipify.org?format=json")
+        data = resposta.json()
+        ip_externo = data["ip"]
+        self.resposta_ip_externo.emit(ip_externo)
 
 def pegar_ip_local():
 
@@ -76,19 +73,6 @@ class Janela(QMainWindow, Ui_Janela):
         self.actionRede.triggered.connect(self.mostrarRede)
         self.widget_atual = None
 
-        # info ui
-        """
-        self.info_widget = QWidget()
-        self.info_ui = Ui_Info()
-        self.info_ui.setupUi(self.info_widget)
-        """
-        # rede ui
-        """
-        self.rede_widget = QWidget()
-        self.rede_ui = Ui_Rede()
-        self.rede_ui.setupUi(self.rede_widget)
-        """
-
         # index -> info ui
         self.mostrarInfo()
         self.widget_atual = self.info_widget
@@ -109,7 +93,6 @@ class Janela(QMainWindow, Ui_Janela):
         tudo_info.valor_usuario.setText(NOME_USUARIO)
         tudo_info.valor_ram.setText(str(round(MEMORIA, 2)) + " Gb")
         tudo_info.valor_hd.setText(str(round(HD_TOTAL, 2)) + " Gb \ Livre: " + str(round(HD_LIVRE, 2)) + " Gb")
-        # self.layoutMiolo.removeWidget(self)
         self.layoutMiolo.addWidget(self.info_widget)
         self.widget_atual = self.info_widget
 
@@ -124,23 +107,53 @@ class Janela(QMainWindow, Ui_Janela):
 
         # Alimentando as labels do rede
 
-        # pegar_ip_externo()
-        #def pegar_ip_externo(self):
-            # self.progresso_externo.setValue(1)
-         #   self.thread = pegar_ip_externo()
-         #   self.thread.resposta_ip_externo.connect(self.mostrar_ip_externo)
-         #   self.thread.start()
-
         tudo_rede = self.rede_ui
         ip_local = pegar_ip_local()
         if ip_local == None:
             ip_local = "0.0.0.0"
         tudo_rede.valor_local.setText("ok")
         tudo_rede.valor_internet.setText("ok")
-        tudo_rede.valor_ip_externo.setText(pegar_ip_externo())
         tudo_rede.valor_ip_local.setText(ip_local)
+        self.pegar_ip_externo(tudo_rede=tudo_rede)
+        tudo_rede.btn_testar.clicked.connect(lambda :self.testarRede(tudo_rede=tudo_rede))
+
         self.layoutMiolo.addWidget(self.rede_widget)
         self.widget_atual = self.rede_widget
+    def testarRede(self, tudo_rede):
+        endereco = tudo_rede.valor_endereco.text()
+        resposta = "Enviando requisição para " + endereco + "\n"
+        if tudo_rede.check_ping.isChecked() and endereco:
+            # tudo_rede.valor_resposta.setText("ping!\n")
+            contador_ping = 1;
+            while contador_ping < 4:
+                contador_ping += 1
+                try:
+                    resultado = ping(endereco)
+                    if resultado is not None:
+                        resposta = resposta + '#' + str(contador_ping) + '# Ping para ' + endereco + ' - Tempo de resposta: ' + str(round(resultado, 3)) + ' ms\n'
+                    else:
+                        resposta = resposta + '#' + str(contador_ping) + '#Ping para ' + endereco + ' - Sem resposta\n'
+
+                    return ""
+                except Exception as e:
+                    resposta = resposta + str(e)
+                    # tudo_rede.valor_resposta.setText(resposta)
+                    return str(e)
+            tudo_rede.valor_resposta.setText(resposta)
+        elif tudo_rede.check_traceroute.isChecked() and endereco:
+            tudo_rede.valor_resposta.setText("Traceroute!")
+        else:
+            tudo_rede.valor_resposta.setText("Algo esta faltando!")
+        # tudo_rede.valor_resposta.setText(resposta)
+
+    def pegar_ip_externo(self, tudo_rede):
+        self.thread = pegar_ip_externo()
+        self.thread.resposta_ip_externo.connect(lambda ip: self.troca_ip_externo(ip, tudo_rede))
+        self.thread.start()
+
+    def troca_ip_externo(self, ip, tudo_rede):
+        tudo_rede.valor_ip_externo.setText(ip)
+        # print("IP: " + ip)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
