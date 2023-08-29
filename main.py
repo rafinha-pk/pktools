@@ -6,6 +6,7 @@ import json
 import platform
 import time
 import psutil
+import subprocess
 from ping3 import ping, verbose_ping
 import netifaces as ni
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QAction
@@ -124,24 +125,39 @@ class Janela(QMainWindow, Ui_Janela):
         resposta = "Enviando requisição para " + endereco + "\n"
         if tudo_rede.check_ping.isChecked() and endereco:
             # tudo_rede.valor_resposta.setText("ping!\n")
-            contador_ping = 1;
-            while contador_ping < 4:
+            contador_ping = 0;
+            while contador_ping < 5:
                 contador_ping += 1
                 try:
                     resultado = ping(endereco)
+
                     if resultado is not None:
                         resposta = resposta + '#' + str(contador_ping) + '# Ping para ' + endereco + ' - Tempo de resposta: ' + str(round(resultado, 3)) + ' ms\n'
                     else:
                         resposta = resposta + '#' + str(contador_ping) + '#Ping para ' + endereco + ' - Sem resposta\n'
+                    tudo_rede.valor_resposta.setText(str(resposta))
 
-                    return ""
                 except Exception as e:
                     resposta = resposta + str(e)
                     # tudo_rede.valor_resposta.setText(resposta)
-                    return str(e)
-            tudo_rede.valor_resposta.setText(resposta)
+                    # return str(e)
+
         elif tudo_rede.check_traceroute.isChecked() and endereco:
-            tudo_rede.valor_resposta.setText("Traceroute!")
+            if NOME_SO == "Linux":
+                comando = f"traceroute {endereco}"
+            else:
+                comando = f"tracert {endereco}"
+            try:
+                processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+                saida, erro = processo.communicate()
+                tudo_rede.valor_resposta.setText(saida.decode('utf-8'))
+                # tudo_rede.valor_resposta.setText(comando)
+
+            except Exception as e:
+                resposta = resposta + str(e)
+                tudo_rede.valor_resposta.setText("não")
+                # tudo_rede.valor_resposta.setText(resposta)
+                # return str(e)
         else:
             tudo_rede.valor_resposta.setText("Algo esta faltando!")
         # tudo_rede.valor_resposta.setText(resposta)
