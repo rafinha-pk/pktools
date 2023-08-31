@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 6.0.2, 2023-08-25T15:34:43. -->
+<!-- Written by QtCreator 6.0.2, 2023-08-30T12:13:37. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -155,6 +155,7 @@
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">/home/rafael/Projeto/pktools/1/PkTools/info.py</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration./home/rafael/Projeto/pktools/1/PkTools/info.py</value>
     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">/home/rafael/Projeto/pktools/1/PkTools/info.py</value>
+    <value type="QString" key="PythonEditor.RunConfiguation.Interpreter">{c26a5992-d898-44f5-bccc-825d6936b053}</value>
     <value type="QString" key="PythonEditor.RunConfiguation.Script">/home/rafael/Projeto/pktools/1/PkTools/info.py</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>
@@ -172,6 +173,7 @@
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">/home/rafael/Projeto/pktools/1/PkTools/rede.py</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">PythonEditor.RunConfiguration./home/rafael/Projeto/pktools/1/PkTools/rede.py</value>
     <value type="QString" key="ProjectExplorer.RunConfiguration.BuildKey">/home/rafael/Projeto/pktools/1/PkTools/rede.py</value>
+    <value type="QString" key="PythonEditor.RunConfiguation.Interpreter">{c26a5992-d898-44f5-bccc-825d6936b053}</value>
     <value type="QString" key="PythonEditor.RunConfiguation.Script">/home/rafael/Projeto/pktools/1/PkTools/rede.py</value>
     <value type="bool" key="RunConfiguration.UseCppDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseCppDebuggerAuto">true</value>

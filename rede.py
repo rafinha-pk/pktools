@@ -82,7 +82,7 @@ class Ui_Rede(object):
         self.btn_testar.setGeometry(QtCore.QRect(230, 150, 89, 25))
         self.btn_testar.setObjectName("btn_testar")
         self.valor_resposta = QtWidgets.QTextEdit(Rede)
-        self.valor_resposta.setGeometry(QtCore.QRect(10, 180, 581, 161))
+        self.valor_resposta.setGeometry(QtCore.QRect(10, 180, 581, 151))
         self.valor_resposta.setReadOnly(True)
         self.valor_resposta.setObjectName("valor_resposta")
 
@@ -102,5 +102,5 @@ class Ui_Rede(object):
         self.valor_ip_externo.setText(_translate("Rede", "buscando..."))
         self.valor_endereco.setText(_translate("Rede", "www.google.com.br"))
         self.check_ping.setText(_translate("Rede", "Ping"))
-        self.check_traceroute.setText(_translate("Rede", "Tracerout"))
+        self.check_traceroute.setText(_translate("Rede", "Traceroute"))
         self.btn_testar.setText(_translate("Rede", "Testar"))

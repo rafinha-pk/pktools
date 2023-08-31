@@ -7,20 +7,31 @@ import platform
 import time
 import psutil
 import subprocess
+import shutil
 from ping3 import ping, verbose_ping
 import netifaces as ni
-from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QAction
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QAction, QPushButton, QProgressBar, QFileDialog
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import *
 from janela import Ui_Janela
 from info import Ui_Info
 from rede import Ui_Rede
+from backup import Ui_backup
 
 # GLOBAL Nomes
 
-HD_PARTICAO = os.statvfs("/")
-HD_TOTAL = (HD_PARTICAO.f_frsize * HD_PARTICAO.f_blocks) / 1e9
-HD_LIVRE = (HD_PARTICAO.f_frsize * HD_PARTICAO.f_bfree) / 1e9
+if platform.system() == "Windows":
+    import wmi
+    import ctypes
+    c = wmi.WMI()
+    for d in c.Win32_LogicalDisk():
+        HD_PARTICAO = round((((int(d.Size) / 1024) / 1024) / 1024), 2)
+        HD_TOTAL = round((((int(d.Size) / 1024) / 1024) / 1024), 2)
+        HD_LIVRE = round((((int(d.FreeSpace) / 1024) / 1024) / 1024), 2)
+else:
+    HD_PARTICAO = os.statvfs("/")
+    HD_TOTAL = (HD_PARTICAO.f_frsize * HD_PARTICAO.f_blocks) / 1e9
+    HD_LIVRE = (HD_PARTICAO.f_frsize * HD_PARTICAO.f_bfree) / 1e9
 MEMORIA = psutil.virtual_memory()
 MEMORIA = (MEMORIA.total / 1e9)
 
@@ -40,23 +51,68 @@ class pegar_ip_externo(QThread):
 
     def run(self):
         time.sleep(0.5) # draminha
-        resposta = requests.get("https://api.ipify.org?format=json")
-        data = resposta.json()
-        ip_externo = data["ip"]
+        try:
+            resposta = requests.get("https://api.ipify.org?format=json")
+            data = resposta.json()
+            ip_externo = data["ip"]
+        except:
+            ip_externo = "0.0.0.0"
+        
         self.resposta_ip_externo.emit(ip_externo)
 
-def pegar_ip_local():
+class fazer_traceroute(QThread):
 
+    def __init__(self, arg):
+        super().__init__()
+        self.endereco = arg
+
+    resposta_fazer_traceroute = pyqtSignal(str)
+
+    def run(self):
+        if NOME_SO == "Linux":
+            comando = f"traceroute {self.endereco}"
+        else:
+            comando = f"tracert {self.endereco}"
+        try:
+            processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            saida, erro = processo.communicate()
+            saida = str(saida)
+
+        except:
+            saida = "Sem conexão"
+
+        if NOME_SO == "Linux":
+            self.resposta_fazer_traceroute.emit(saida.replace("\\n", "\n"))
+        else:
+            self.resposta_fazer_traceroute.emit(saida.replace("\\r\\n", "\n"))
+
+
+def pegar_ip_local():
     try:
         interfaces = ni.interfaces()
         for iface in interfaces:
-            if iface != 'lo':  # Ignorar interface loopback
-                addresses = ni.ifaddresses(iface)
-                if ni.AF_INET in addresses:
-                    return addresses[ni.AF_INET][0]['addr']
+            addresses = ni.ifaddresses(iface)
+            if ni.AF_INET in addresses:
+                for addr_info in addresses[ni.AF_INET]:
+                    if 'addr' in addr_info:
+                        ip_local = addr_info['addr']
+                        default_gateway = ni.gateways()['default'][ni.AF_INET]
+                        ip_gateway = default_gateway[0]
+                        try:
+                            response = ping(ip_gateway, timeout=2)
+                            if response is not None and ip_local != "127.0.0.1":
+                                return ip_local
+                        except:
+                            pass
     except:
         pass
     return None
+
+def eh_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 
 
 class Janela(QMainWindow, Ui_Janela):
@@ -72,6 +128,7 @@ class Janela(QMainWindow, Ui_Janela):
         self.actionFechar.triggered.connect(self.close)
         self.actionInformacoes.triggered.connect(self.mostrarInfo)
         self.actionRede.triggered.connect(self.mostrarRede)
+        self.actionBackup.triggered.connect(self.mostrarBackup)
         self.widget_atual = None
 
         # index -> info ui
@@ -93,7 +150,10 @@ class Janela(QMainWindow, Ui_Janela):
         tudo_info.valor_sistema.setText(NOME_SO + " " + NOME_SO_VERSAO + " - " + NOME_SO_ARQUITETURA)
         tudo_info.valor_usuario.setText(NOME_USUARIO)
         tudo_info.valor_ram.setText(str(round(MEMORIA, 2)) + " Gb")
-        tudo_info.valor_hd.setText(str(round(HD_TOTAL, 2)) + " Gb \ Livre: " + str(round(HD_LIVRE, 2)) + " Gb")
+        if NOME_SO == "Windows":
+            tudo_info.valor_hd.setText(str(HD_TOTAL) + " Gb \ Livre: " + str(HD_LIVRE) + " Gb")
+        else:
+            tudo_info.valor_hd.setText(str(round(HD_TOTAL, 2)) + " Gb \ Livre: " + str(round(HD_LIVRE, 2)) + " Gb")
         self.layoutMiolo.addWidget(self.info_widget)
         self.widget_atual = self.info_widget
 
@@ -112,11 +172,16 @@ class Janela(QMainWindow, Ui_Janela):
         ip_local = pegar_ip_local()
         if ip_local == None:
             ip_local = "0.0.0.0"
-        tudo_rede.valor_local.setText("ok")
-        tudo_rede.valor_internet.setText("ok")
+            tudo_rede.valor_local.setText("sem")
+        else:
+            tudo_rede.valor_local.setText("ok")
+        tudo_rede.valor_internet.setText("...")
         tudo_rede.valor_ip_local.setText(ip_local)
         self.pegar_ip_externo(tudo_rede=tudo_rede)
         tudo_rede.btn_testar.clicked.connect(lambda :self.testarRede(tudo_rede=tudo_rede))
+
+        if NOME_SO == "Windows" and eh_admin() == False:
+            tudo_rede.btn_testar.setEnabled(False)
 
         self.layoutMiolo.addWidget(self.rede_widget)
         self.widget_atual = self.rede_widget
@@ -126,38 +191,28 @@ class Janela(QMainWindow, Ui_Janela):
         if tudo_rede.check_ping.isChecked() and endereco:
             # tudo_rede.valor_resposta.setText("ping!\n")
             contador_ping = 0;
-            while contador_ping < 5:
+            while contador_ping < 4:
                 contador_ping += 1
                 try:
                     resultado = ping(endereco)
 
-                    if resultado is not None:
+                    if resultado is not None and resultado > 0:
                         resposta = resposta + '#' + str(contador_ping) + '# Ping para ' + endereco + ' - Tempo de resposta: ' + str(round(resultado, 3)) + ' ms\n'
                     else:
-                        resposta = resposta + '#' + str(contador_ping) + '#Ping para ' + endereco + ' - Sem resposta\n'
+                        resposta = resposta + '#' + str(contador_ping) + '# Ping para ' + endereco + ' - Sem resposta\n'
                     tudo_rede.valor_resposta.setText(str(resposta))
 
                 except Exception as e:
                     resposta = resposta + str(e)
-                    # tudo_rede.valor_resposta.setText(resposta)
+                    tudo_rede.valor_resposta.setText(resposta)
                     # return str(e)
 
         elif tudo_rede.check_traceroute.isChecked() and endereco:
-            if NOME_SO == "Linux":
-                comando = f"traceroute {endereco}"
-            else:
-                comando = f"tracert {endereco}"
-            try:
-                processo = subprocess.Popen(comando, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-                saida, erro = processo.communicate()
-                tudo_rede.valor_resposta.setText(saida.decode('utf-8'))
-                # tudo_rede.valor_resposta.setText(comando)
-
-            except Exception as e:
-                resposta = resposta + str(e)
-                tudo_rede.valor_resposta.setText("não")
-                # tudo_rede.valor_resposta.setText(resposta)
-                # return str(e)
+            tudo_rede.valor_resposta.setText("Enviando traceroute para " + endereco)
+            self.thread = fazer_traceroute(endereco)
+            self.thread.resposta_fazer_traceroute.connect(lambda resp: tudo_rede.valor_resposta.setPlainText(resp))
+            self.thread.start()
+            tudo_rede.btn_testar.setEnabled(False)
         else:
             tudo_rede.valor_resposta.setText("Algo esta faltando!")
         # tudo_rede.valor_resposta.setText(resposta)
@@ -169,10 +224,45 @@ class Janela(QMainWindow, Ui_Janela):
 
     def troca_ip_externo(self, ip, tudo_rede):
         tudo_rede.valor_ip_externo.setText(ip)
+        try:
+            response = requests.get("http://www.google.com", timeout=5)
+            tudo_rede.valor_internet.setText("ok")
+        except:
+            tudo_rede.valor_internet.setText("sem")
         # print("IP: " + ip)
+
+    def mostrarBackup(self):
+        self.backup_widget = QWidget()
+        self.backup_ui = Ui_backup()
+        self.backup_ui.setupUi(self.backup_widget)
+        # apagando a widget anterior
+        if self.widget_atual != self.backup_widget and self.widget_atual != None:
+            self.layoutMiolo.removeWidget(self.widget_atual)
+            self.widget_atual.deleteLater()
+        self.layoutMiolo.addWidget(self.backup_widget)
+        self.widget_atual = self.backup_widget
+
+        # Alimentando as labels do backup
+        tudo_backup = self.backup_ui
+        tudo_backup.tab_bkp_btn_fazer.setEnabled(False)
+        tudo_backup.tab_bkp_btn_selecionar.clicked.connect(lambda :self.pegaDestino(tudo_backup=tudo_backup))
+
+    def pegaDestino(self, tudo_backup):
+        destino = QFileDialog.getExistingDirectory(self, "Selecione a pasta destino")
+        if destino:
+            tudo_backup.tab_bkp_destino.setText(destino)
+            tudo_backup.tab_bkp_btn_fazer.setEnabled(True)
+        else:
+            if tudo_backup.tab_bkp_destino.text():
+                tudo_backup.tab_bkp_btn_fazer.setEnabled(True)
+            else:
+                tudo_backup.tab_bkp_btn_fazer.setEnabled(False)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    app_icon = QIcon("ico/ico.ico")
+    app.setWindowIcon(app_icon)
     window = Janela()
     window.show()
     sys.exit(app.exec_())
